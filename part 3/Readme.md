@@ -1,16 +1,16 @@
 ### Usage
 
-- Before compilation (for windows subsystem):
+- Before compilation (for windows subsystem)
 ```
 echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 ```
 
-- Compile:
+- Compile
 ```
 make -f Makefile.pagerank
 ```
 
-- Run:
+- Run
 ```
 mpirun -np 8 wordfreq file1 file2
 ```
