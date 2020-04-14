@@ -1,10 +1,16 @@
 ##### Usage
 
-- Before compilation (for windows subsystem)
-```echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope```
+- Before compilation (for windows subsystem):
+```
+echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+```
 
-- Compile
-```make -f Makefile.pagerank```
+- Compile:
+```
+make -f Makefile.pagerank
+```
 
-- Run
-```mpirun -np 8 wordfreq file1 file2```
+- Run:
+```
+mpirun -np 8 wordfreq file1 file2
+```
