@@ -1,0 +1,14 @@
+# Targets
+
+all:	pagerank
+
+pagerank:	pagerank.o $(USRLIB)
+	$(LINK) $(LINKFLAGS) pagerank.o $(USRLIB) $(SYSLIB) -o pagerank
+
+clean:
+	rm *.o pagerank
+
+# Rules
+
+%.o:%.cpp
+	$(CPP) $(CCFLAGS) -c $<
