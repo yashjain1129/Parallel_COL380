@@ -1,4 +1,4 @@
-##### Usage
+### Usage
 
 - Before compilation (for windows subsystem):
 ```
