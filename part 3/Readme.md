@@ -1,6 +1,6 @@
 ### Usage
 
-- Before compilation (for windows subsystem)
+- Before compilation (for windows subsystem for linux)
 ```
 echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 ```
