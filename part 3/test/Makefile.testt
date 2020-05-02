@@ -1,0 +1,14 @@
+# Targets
+
+all:	testt
+
+testt:	testt.o $(USRLIB)
+	$(LINK) $(LINKFLAGS) testt.o $(USRLIB) $(SYSLIB) -o testt
+
+clean:
+	rm *.o testt
+
+# Rules
+
+%.o:%.cpp
+	$(CPP) $(CCFLAGS) -c $<
