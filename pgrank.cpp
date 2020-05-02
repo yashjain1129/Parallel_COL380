@@ -1,15 +1,7 @@
 #include <bits/stdc++.h>
-// #include <iostream>
 using namespace std;
 
-struct webpage{
-	int num_outgoing =0;
-	double pagerank = 1;
-	vector<int> outlist;
-};
-
-int num_edges=0;
-int num_webpages=20000;
+int num_webpages;
 
 vector<vector<double>> intermediate_pg(100000);
 vector<vector<int>> outgoing_links(100000);
@@ -56,38 +48,39 @@ int main(int argc, char const *argv[])
 	double alpha = 0.85;
 	double conv = 0.00001;
 	int a,b,i;
-
 	ifstream fopen;
 	fopen.close();
-	fopen.open("barabasi-20000.txt");
+	fopen.open(argv[1]);
+	while(!fopen.eof()){
+		fopen>>a>>b;
+		num_webpages = max(num_webpages,max(a,b));
+	}
+	fopen.close();
+	num_webpages++;
+
+	fopen.open(argv[1]);
 	while(!fopen.eof()){
 		fopen>>a>>b;
 		outgoing_links[a].push_back(b);
 	}
 	fopen.close();
 
-	// struct webpage w1;
 	double pgr = double(1.0f/num_webpages);
+	cout<<pgr;
 	for(int i=0; i<num_webpages; i++){
 		pageranks[i] = pgr;
 	}
 
-	int count = 0;
 	while(true){
 		for(i=0; i<num_webpages; i++){
 			mapper1(i,pageranks[i]);
 		}
 		double dp =0.0f;
-		double ap =0.0f;
 		for(i=0; i<sumlist.size(); i++){
 			dp += sumlist[i];
 		}
 		dp = double(dp/num_webpages);
 		sumlist.clear();
-		for(i=0; i<num_webpages; i++){
-			ap += pageranks[i];
-		}						
-		ap = double(ap/num_webpages);
 		for(i=0; i<num_webpages; i++){
 			mapper(i,pageranks[i]);
 		}
@@ -96,7 +89,7 @@ int main(int argc, char const *argv[])
 			intermediate_pg[i].clear();
 		}	
 		for(i=0; i<num_webpages; i++){
-			pageranks_up[i] = alpha*pageranks_up[i] + alpha*dp + (1-alpha)*ap;
+			pageranks_up[i] = (double)alpha*pageranks_up[i] + alpha*dp + (double)(1-alpha)/num_webpages;
 		}
 		bool converging = true;
 		for(i=0; i<num_webpages; i++){
@@ -115,6 +108,5 @@ int main(int argc, char const *argv[])
 	}
 	cout<<"sum "<<sumer;
 
-	/* code */
 	return 0;
 }
