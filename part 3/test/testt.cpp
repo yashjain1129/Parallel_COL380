@@ -90,44 +90,34 @@ int main(int narg, char **args)
 
   // MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
-  // std::cout << "trstart = " << tstart << std::endl;
-  // test = 0;
+  int nwords = mr->map(nprocs,fileread,NULL);
+  // cout << "Rank 0 :  " << test << "\n";
+  int nfiles = mr->mapfilecount;
 
-  for (int i = 0; i < 5; i++) {
+  // std::cout << "_____________S__________________" << '\n';
+  // mr->print(0, 1, 5, 5);
+  // std::cout << "_____________E_________________" << '\n';
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // std::cout << "loop i = " << i << " collate" << '\n';
+
+  mr->collate(NULL);
+
+
+
+  // if (me == 0) {
     /* code */
-    test = i;
-    int nwords = mr->map(nprocs,fileread,NULL);
-    // cout << "Rank 0 :  " << test << "\n";
-    int nfiles = mr->mapfilecount;
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (me == 0) {
-      /* code */
-      std::cout << "loop i = " << i << " collate" << '\n';
-    }
-
-    mr->collate(NULL);
-
-    std::cout << "******************************************" << '\n';
-    mr->print(0, 1, 5, 5);
+  // }
 
 
-    // if (me == 0) {
-      /* code */
-    // }
-
-
-    // MPI_Barrier(MPI_COMM_WORLD);
-    // cout << "______________________" << endl;
-  }
-  std::cout << "*************** loop " << i << " *****************" << '\n';
-  mr->print(0, 1, 5, 5);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // cout << "______________________" << endl;
+  // }
 
   std::cout << "OK" << '\n';
-  if(me == 0){
+  // if(me == 0){
     mr->gather(0);
-  }
+  // }
 
 
   // delete mr;
@@ -152,16 +142,8 @@ void fileread(int itask, KeyValue *kv, void *ptr)
 
   int world_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-  char* numberstring = new char[(((sizeof test) * CHAR_BIT) + 2)/3 + 2];
-  char* numberstring_ = new char[(((sizeof test) * CHAR_BIT) + 2)/3 + 2];
-  sprintf(numberstring, "%d", test);
-  sprintf(numberstring_, "%d", world_rank);
-  cout << "Inside rank " << world_rank << " -> " << test << endl;
-  kv->add(numberstring,2,numberstring_,2);
-  std::cout << "________________________________" << '\n';
-
-  // test = world_rank;
-
+  kv->add((char *) &world_rank,sizeof(int),(char *) &world_rank,sizeof(int));
+  std::cout << "Done " << world_rank << '\n';
 
 }
 
