@@ -95,15 +95,16 @@ int main(int narg, char **args)
   int nfiles = mr->mapfilecount;
 
   // std::cout << "_____________S__________________" << '\n';
-  // mr->print(0, 1, 5, 5);
   // std::cout << "_____________E_________________" << '\n';
   MPI_Barrier(MPI_COMM_WORLD);
 
   // std::cout << "loop i = " << i << " collate" << '\n';
 
-  mr->collate(NULL);
+  int num = mr->collate(NULL);
+  std::cout << " num at proc " << me << " is " << num << '\n';
 
 
+  mr->print(-1, 1, 1, 1);
 
   // if (me == 0) {
     /* code */
