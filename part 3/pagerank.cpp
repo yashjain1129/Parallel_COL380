@@ -40,6 +40,7 @@ vector<double> sumlist;
 
 // void fileread(int, char *, KeyValue *, void *);
 void fileread(int itask, KeyValue *kv, void *ptr);
+void update(uint64_t, char *, int, char *, int, KeyValue *, void *);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
 // void output(uint64_t, char *, int, char *, int, KeyValue *, void *);
@@ -117,10 +118,18 @@ int main(int narg, char **args)
   mr->convert();
 
   int nunique = mr->reduce(sum,NULL);
+  mr->sort_keys(1);
 
-  cout << "____**__________________" << endl;
-  mr->print(-1, 1, 1, 4);
-  cout << "______________________" << endl;
+  mr->map(mr,update,NULL);
+
+  for(i=0; i<num_webpages; i++){
+    cout << i  << " " << pageranks_up[i]  << endl;
+  }
+
+
+  // cout << "____**__________________" << endl;
+  // mr->print(0, 1, 1, 4);
+  // cout << "______________________" << endl;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -158,6 +167,14 @@ void fileread(int itask, KeyValue *kv, void *ptr)
   // test = world_rank;
 
 
+}
+
+void update(uint64_t itask, char *key, int keybytes, char *value,
+	    int valuebytes, KeyValue *kv, void *ptr)
+{
+  int keyint = *(int *) key;
+  double pgrank = *(double *) value;
+  pageranks_up[keyint] = pgrank;
 }
 
 /* ----------------------------------------------------------------------
@@ -253,6 +270,6 @@ Compile
  mpic++ wordfreq.o ../src/libmrmpi_mpicc.a -o wordfreq
 
 Run
-mpirun -np 8 wordfreq barabasi-20000.txt
+mpirun -np 8 pagerank
 
 */
