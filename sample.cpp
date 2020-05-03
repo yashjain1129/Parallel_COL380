@@ -12,15 +12,14 @@
 using namespace std;
 #include "mapreduce.hpp"
 
-vector<vector<double>> intermediate_pg(40000);
-vector<vector<int>> outgoing_links(40000);
-vector<double> pageranks(40000, 0.0f);
-vector<double> pageranks_up(40000, 0.0f);
+vector<vector<double>> intermediate_pg(100000);
+vector<vector<int>> outgoing_links(100000);
+vector<double> pageranks(100000, 0.0);
+vector<double> pageranks_up(100000, 0.0);
 vector<double> sumlist;
 
-int num_edges=0;
-int num_webpages=20000;
-double dp = 0.0f;
+int num_webpages=1000;
+double dp = 0.0;
 
 namespace dangling {
 
@@ -128,7 +127,7 @@ struct map_task : public mapreduce::map_task<unsigned,double>
         for (int i =0; i<sizes; i++)
         {
             typename Runtime::reduce_task_type::key_type const emit_key = outgoing_links[key][i];
-            double temp = double(value/sizes);
+            double temp = (double)value/sizes;
             runtime.emit_intermediate(emit_key, temp);
         }
     }
@@ -140,14 +139,13 @@ struct reduce_task : public mapreduce::reduce_task<unsigned, double >
     void operator()(Runtime &runtime, key_type const &key, It it, It ite) const
     {
         value_type results(*it);
-        double k  = 0.0f;
+        double k  = 0.0;
         for (It it1=it; it1!=ite; ++it1)
         {
             double r = *it1;
             k += r;
         }
-        results = k;
-        
+        results = (double)k;
         runtime.emit(key, results);
     } 
 };
@@ -162,34 +160,39 @@ mapreduce::job<pagerank::map_task,
 }
 
 int main(int argc, char *argv[])
-{  
+{   
     double alpha = 0.85;
-    double conv = 0.0001;
+    double conv = 0.000001;
     int a,b,i;
     ifstream fopen;
-    fopen.open("./examples/pagerank/barabasi-20000.txt");
+    fopen.close();
+    fopen.open(argv[1]);
+    while(!fopen.eof()){
+        fopen>>a>>b;
+        num_webpages = max(num_webpages,max(a,b));
+    }
+    fopen.close();
+    num_webpages++;
+
+    fopen.open(argv[1]);
     while(!fopen.eof()){
         fopen>>a>>b;
         outgoing_links[a].push_back(b);
     }
     fopen.close();
-    // int num_edges = 0;
-    // cin>>num_webpages;
-    // cin>>num_edges;
-    // while(num_edges--){
-    //     cin>>a>>b;
-    //     outgoing_links[a].push_back(b);
-    // }
-    double pgr = double(1.0f/num_webpages);
+
+
+    double pgr = double(1.0/num_webpages);
     for(int i=0; i<num_webpages; i++){
         pageranks[i] = pgr;
     }
-
     mapreduce::specification spec;
 
     spec.reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
 
+    int count = 0;
     while(true){
+        count++;
         dangling::job::datasource_type get_data1;
         dangling::job job1(get_data1, spec);
         mapreduce::results result1; 
@@ -199,10 +202,7 @@ int main(int argc, char *argv[])
         job1.run<mapreduce::schedule_policy::cpu_parallel<dangling::job> >(result1);
     #endif
         auto it=job1.begin_results();
-        dp = it->second;
-        // cout<<"----------dp here--------------------------"<<endl;
-        // cout<<dp<<endl;
-
+        dp = it->second/num_webpages;
         pagerank::job::datasource_type datanodes1;
         pagerank::job job(datanodes1, spec);
         mapreduce::results result; 
@@ -210,24 +210,27 @@ int main(int argc, char *argv[])
     #ifdef _DEBUG
         job.run<mapreduce::schedule_policy::sequential<pagerank::job> >(result);
     #else
-        job.run<mapreduce::schedule_policy::cpu_parallel<pagerank::job> >(result);
+        job.run<mapreduce::schedule_policy::cpu_parallel<pagerank::job> >(result);   
     #endif
         for (auto it=job.begin_results(); it!=job.end_results(); ++it){
             double conv_temp = pageranks[it->first];
-            pageranks[it->first] = (it->second*alpha) + (dp*alpha/num_webpages) + (1-alpha)/num_webpages;
-            // std::cout << it->first<<" "<<((it->second))<<endl;
-            if((conv_temp-pageranks[i])>conv)
+            i = it->first;
+            pageranks[it->first] = (double)it->second*alpha + dp*alpha/num_webpages + (double)(1-alpha)/num_webpages;
+            if(abs(conv_temp-pageranks[it->first])>conv)
                 converging = false;
         }
         if(converging){
+            cout<<"number of iterations are "<<count<<endl;
             break;
         }
     }
 
-    for(int i =0; i<num_webpages; i++){
-    cout<<i<<" "<<pageranks[i]<<endl;
+    double sumer = 0.0;
+    for(int i=0; i<num_webpages; i++){
+        cout<<i<<" = "<<pageranks[i]<<endl;
+        sumer += pageranks[i];
     }
-    
+    cout<<"sum "<<sumer;    
     return 0;
 }
 
