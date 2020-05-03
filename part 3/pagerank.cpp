@@ -1,4 +1,4 @@
-/* ----------------------------------------------------------------------
+  /* ----------------------------------------------------------------------
    MR-MPI = MapReduce-MPI library
    http://www.cs.sandia.gov/~sjplimp/mapreduce.html
    Steve Plimpton, sjplimp@sandia.gov, Sandia National Laboratories
@@ -16,7 +16,7 @@
 // (1) read all files and files in dirs
 // (2) parse into words separated by whitespace
 // (3) count occurrence of each word in all files
-// (4)  top 10 words
+// (4) print top 10 words
 
 #include "mpi.h"
 #include "stdio.h"
@@ -25,17 +25,28 @@
 #include "sys/stat.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
+#include <bits/stdc++.h>
 
 using namespace MAPREDUCE_NS;
+using namespace std;
 
-void fileread(int, char *, KeyValue *, void *);
+int num_edges=0;
+int num_webpages=20000;
+vector<vector<double>> intermediate_pg(100000);
+vector<vector<int>> outgoing_links(100000);
+vector<double> pageranks(100000, 0.0f);
+vector<double> pageranks_up(100000, 0.0f);
+vector<double> sumlist;
+
+// void fileread(int, char *, KeyValue *, void *);
+void fileread(int itask, KeyValue *kv, void *ptr);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
-void output(uint64_t, char *, int, char *, int, KeyValue *, void *);
-
-struct Count {
+// void output(uint64_t, char *, int, char *, int, KeyValue *, void *);
+/*
+struct pagerank {
   int n,limit,flag;
-};
+};*/
 
 /* ---------------------------------------------------------------------- */
 
@@ -44,16 +55,41 @@ int main(int narg, char **args)
   MPI_Init(&narg,&args);
 
   int me,nprocs;
-  nprocs = 2;
-  // std::cout << "I nproc = " << nprocs << std::endl;
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-  // std::cout << "II nproc = " << nprocs << std::endl;
 
-  if (narg <= 1) {
-    if (me == 0) printf("Syntax: wordfreq file1 file2 ...\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
+  double alpha = 0.85;
+	double conv = 0.00001;
+	int a,b,i;
+
+  ifstream fopen;
+	fopen.close();
+	fopen.open("barabasi-20000.txt");
+	while(!fopen.eof()){
+		fopen>>a>>b;
+		outgoing_links[a].push_back(b);
+	}
+	fopen.close();
+
+  double pgr = double(1.0f/num_webpages);
+	for(int i=0; i<num_webpages; i++){
+		pageranks[i] = pgr;
+	}
+
+  //while loop
+
+  //dangling page and all pages
+  double dp =0.0f;
+  double ap =0.0f;
+  for(i=0; i<num_webpages; i++){
+    if(outgoing_links[i].size()==0){
+  		dp += pageranks[i];	// sumlist.push_back(value);
+  	}
+    ap += pageranks[i];
   }
+  dp = double(dp/num_webpages);
+  ap = double(ap/num_webpages);
+  std::cout << "KK" << '\n';
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 2;
@@ -65,39 +101,63 @@ int main(int narg, char **args)
   double tstart = MPI_Wtime();
   // std::cout << "trstart = " << tstart << std::endl;
 
-  int nwords = mr->map(narg-1,&args[1],0,1,0,fileread,NULL);
+  int nwords = mr->map(nprocs,fileread,NULL);
   int nfiles = mr->mapfilecount;
-  mr->collate(NULL);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+
+  // int world_rank;
+  // MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  // cout << world_rank << "\n";
+
+  // cout << nfiles << "\n";
+
+  mr->gather(1);
+  mr->convert();
+
   int nunique = mr->reduce(sum,NULL);
+
+  cout << "____**__________________" << endl;
+  mr->print(-1, 1, 1, 4);
+  cout << "______________________" << endl;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
-  mr->sort_values(&ncompare);
+  MPI_Finalize();
+}
 
-  Count count;
-  count.n = 0;
-  count.limit = 10;
-  count.flag = 0;
-  mr->map(mr,output,&count);
+void fileread(int itask, KeyValue *kv, void *ptr)
+{
+  // filesize = # of bytes in file
 
-  mr->gather(1);
-  mr->sort_values(ncompare);
+  int world_rank, num_procs;
+  MPI_Comm_size(MPI_COMM_WORLD,&num_procs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-  count.n = 0;
-  count.limit = 10;
-  count.flag = 1;
-  mr->map(mr,output,&count);
+  // cout <<
 
-  delete mr;
-
-  if (me == 0) {
-    printf("%d total words, %d unique words\n",nwords,nunique);
-    printf("Time to process %d files on %d procs = %g (secs)\n",
-	   nfiles,nprocs,tstop-tstart);
+  for (int i = world_rank*(20000/num_procs); i < (world_rank+1)*(20000/num_procs); i++) {
+    // cout << i << endl;
+    double pgi = 0;
+    kv->add((char *) &i,sizeof(int),(char *) &pgi,sizeof(double));
+    if(outgoing_links[i].size() == 0){
+      continue;
+    }
+    for(int j =0; j<outgoing_links[i].size(); j++){
+      // cout << j << " of " << outgoing_links[i].size() << " of webpage " << i << " of " << (world_rank+1)*(20000/num_procs) << " (" << world_rank << ") " << endl;
+      double pg = (double)(pageranks[i]/outgoing_links[i].size());
+      // std::cout << "OK " << pg << '\n';
+      kv->add((char *) &outgoing_links[i][j],sizeof(int),(char *) &pg,sizeof(double));
+		}
   }
 
-  MPI_Finalize();
+  // std::cout << "________________________________" << '\n';
+
+  // test = world_rank;
+
+
 }
 
 /* ----------------------------------------------------------------------
@@ -105,9 +165,12 @@ int main(int narg, char **args)
    for each word in file, emit key = word, value = NULL
 ------------------------------------------------------------------------- */
 
+/*
 void fileread(int itask, char *fname, KeyValue *kv, void *ptr)
 {
   // filesize = # of bytes in file
+
+  cout << "______________" << itask  << "\n";
 
   struct stat stbuf;
   int flag = stat(fname,&stbuf);
@@ -141,7 +204,13 @@ void fileread(int itask, char *fname, KeyValue *kv, void *ptr)
 void sum(char *key, int keybytes, char *multivalue,
 	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
 {
-  kv->add(key,keybytes,(char *) &nvalues,sizeof(int));
+  int t = *(int *) key;
+  double* s = (double *) multivalue;
+  double sum = 0;
+  for(int i = 0; i < nvalues; i++){
+    sum += s[i];
+  }
+  kv->add(key,keybytes,(char *) &sum,sizeof(double));
 }
 
 /* ----------------------------------------------------------------------
@@ -162,7 +231,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    process a word and its count
    depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
-
+/*
 void output(uint64_t itask, char *key, int keybytes, char *value,
 	    int valuebytes, KeyValue *kv, void *ptr)
 {
@@ -173,17 +242,17 @@ void output(uint64_t itask, char *key, int keybytes, char *value,
   int n = *(int *) value;
   if (count->flag) printf("%d %s\n",n,key);
   else kv->add(key,keybytes,(char *) &n,sizeof(int));
-}
+}*/
 
 /*
 Before compilation
  echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
 Compile
- make -f Makefile.mpicc
- mpic++ wordfreq.o ../src/libmrmpi_mpicc.a -o
+ make -f Makefile.pagerank
+ mpic++ wordfreq.o ../src/libmrmpi_mpicc.a -o wordfreq
 
 Run
-mpirun -np 8 wordfreq file1 file2
+mpirun -np 8 wordfreq barabasi-20000.txt
 
 */
