@@ -70,6 +70,8 @@ int main(int narg, char **args)
 	fopen.close();
 	num_webpages++;
 
+  num_webpages = 20000;
+
   double pgr = double(1.0f/num_webpages);
 	for(int i=0; i<num_webpages; i++){
 		pageranks[i] = pgr;
@@ -90,22 +92,25 @@ int main(int narg, char **args)
     MPI_Barrier(MPI_COMM_WORLD);
     mr = new MapReduce(MPI_COMM_WORLD);
     // mr->verbosity = 2;
-    mr->timer = 1;
+    // mr->timer = 1;
     //mr->memsize = 1;
     //mr->outofcore = 1;
 
     int nwords = mr->map(nprocs,fileread,NULL);
     int nfiles = mr->mapfilecount;
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
+    // cout << "gather -> " <<  << endl;
     mr->gather(1);
     mr->convert();
 
     int nunique = mr->reduce(sum,NULL);
-    mr->sort_keys(1);
+    mr->broadcast(0);
+    // mr->sort_keys(1);
 
+    MPI_Barrier(MPI_COMM_WORLD);
     mr->map(mr,update,NULL);
+
+
 
     delete mr;
     for(i=0; i<num_webpages; i++){
@@ -115,23 +120,32 @@ int main(int narg, char **args)
 		for(i=0; i<num_webpages; i++){
 			if(pageranks[i]-pageranks_up[i]>conv)
 				converging=false;
-			pageranks[i] = pageranks_up[i];
+        pageranks[i] = pageranks_up[i];
+  			// pageranks_up[i] = 0;
 		}
-    if(me == 0){
-      std::cout << "pageranks[0] = " << dp << '\n';
-    }
+    // double sumer = 0.0;
+  	// for(int i=0; i<num_webpages; i++){
+  	// 	// cout<<i<<" = "<<pageranks[i]<<endl;
+  	// 	sumer += pageranks[i];
+  	// }
+  	// cout<<"sum "<<sumer << endl;
+    // if(me == 0){
+    //   std::cout << "pageranks[0] = " << dp << '\n';
+    // }
 		if(converging && (me == 0))
 			break;
 
     tt++;
   }
 
+  std::cout << "Number of loop -> " << tt << '\n';
+
   double sumer = 0.0;
-	for(int i=0; i<num_webpages; i++){
-		// cout<<i<<" = "<<pageranks[i]<<endl;
+	for(int i=0; i<1000; i++){
+		cout << i << " = " << pageranks[i] << endl;
 		sumer += pageranks[i];
 	}
-	cout<<"sum "<<sumer;
+
   // MPI_Finalize();
 
 	return 0;
@@ -147,9 +161,9 @@ void fileread(int itask, KeyValue *kv, void *ptr)
   MPI_Comm_size(MPI_COMM_WORLD,&num_procs);
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-  // cout <<
+  // cout << " In World rank -> " << ((world_rank*20000)/num_procs) << " " << (((world_rank+1)*20000)/num_procs) << endl;
 
-  for (int i = world_rank*(20000/num_procs); i < (world_rank+1)*(20000/num_procs); i++) {
+  for (int i = ((world_rank*20000)/num_procs); i < (((world_rank+1)*20000)/num_procs); i++) {
     // cout << i << endl;
     double pgi = 0;
     kv->add((char *) &i,sizeof(int),(char *) &pgi,sizeof(double));
