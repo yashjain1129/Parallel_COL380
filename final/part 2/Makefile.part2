@@ -1,0 +1,2 @@
+mapreduce:
+	mpic++ -g -Wall -o mr-pr-mpi.o test.cpp mylib.cpp mylib.h
