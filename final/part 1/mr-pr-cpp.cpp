@@ -206,20 +206,19 @@ int main(int argc, char *argv[])
         pagerank::job::datasource_type datanodes1;
         pagerank::job job(datanodes1, spec);
         mapreduce::results result;
-        bool converging = true;
     #ifdef _DEBUG
         job.run<mapreduce::schedule_policy::sequential<pagerank::job> >(result);
     #else
         job.run<mapreduce::schedule_policy::cpu_parallel<pagerank::job> >(result);
     #endif
+        double error = 0.0f;
         for (auto it=job.begin_results(); it!=job.end_results(); ++it){
             double conv_temp = pageranks[it->first];
             i = it->first;
             pageranks[it->first] = (double)it->second*alpha + dp*alpha/num_webpages + (double)(1-alpha)/num_webpages;
-            if(abs(conv_temp-pageranks[it->first])>conv)
-                converging = false;
+            error += abs(conv_temp-pageranks[it->first]);
         }
-        if(converging){
+        if(error<conv){
             break;
         }
     }
